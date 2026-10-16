@@ -1,0 +1,427 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>حاسبة أقساط تابي</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Readex+Pro:wght@400;500;600;700&family=IBM+Plex+Sans+Arabic:wght@400;500;600&display=swap">
+<style>
+/* Layout: one input band on top, two ledgers side by side (client / us), installment track below */
+:root{
+  --bg:#f3f5f7; --surface:#ffffff; --ink:#15202b; --muted:#5d6b78; --line:#dde3e9;
+  --accent:#e8742a; --accent-soft:#fde9dc; --accent-ink:#b4521a;
+  --cool:#1f5f74; --cool-soft:#e1eef2; --good:#1d7a4f; --good-soft:#e2f3ea;
+  --display:"Readex Pro","IBM Plex Sans Arabic",system-ui,sans-serif;
+  --body:"IBM Plex Sans Arabic",system-ui,sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0f1519; --surface:#172027; --ink:#e8eef2; --muted:#93a3b0; --line:#26323b;
+  --accent:#f08a45; --accent-soft:#3a2416; --accent-ink:#f6a774;
+  --cool:#6fb6cc; --cool-soft:#15303a; --good:#5cc993; --good-soft:#143326; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f1519; --surface:#172027; --ink:#e8eef2; --muted:#93a3b0; --line:#26323b;
+  --accent:#f08a45; --accent-soft:#3a2416; --accent-ink:#f6a774;
+  --cool:#6fb6cc; --cool-soft:#15303a; --good:#5cc993; --good-soft:#143326; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.6;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:28px 48px}
+.wrap{max-width:1040px;margin-inline:auto;display:grid;gap:22px}
+.num{font-variant-numeric:tabular-nums;font-family:var(--display)}
+header{display:flex;flex-wrap:wrap;align-items:end;justify-content:space-between;gap:12px}
+.eyebrow{font-size:12.5px;color:var(--accent-ink);font-weight:600;letter-spacing:.02em}
+h1{font-family:var(--display);font-weight:700;font-size:clamp(26px,4vw,36px);margin:2px 0 0;line-height:1.25;text-wrap:balance}
+.sub{color:var(--muted);margin:4px 0 0;max-width:60ch}
+
+/* input band */
+.input-band{background:var(--ink);color:var(--bg);border-radius:18px;padding:22px clamp(18px,3vw,30px);display:grid;gap:16px}
+.input-band label{font-size:13px;opacity:.75}
+.amount-row{display:flex;align-items:center;gap:10px;border-bottom:2px solid var(--accent);padding-bottom:6px}
+#amount{flex:1;min-width:0;background:transparent;border:0;color:inherit;font-family:var(--display);font-size:clamp(40px,8vw,64px);font-weight:600;font-variant-numeric:tabular-nums;outline:none;padding:0}
+.cur{font-family:var(--display);font-size:20px;opacity:.7}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{background:transparent;color:inherit;border:1px solid color-mix(in srgb,var(--bg) 30%,transparent);border-radius:999px;padding:5px 14px;font:inherit;font-size:13.5px;cursor:pointer}
+.chip:hover,.chip:focus-visible{border-color:var(--accent);color:var(--accent);outline:none}
+.totals{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;padding-top:6px}
+.totals div{display:grid;gap:2px}
+.totals span{font-size:12.5px;opacity:.7}
+.totals b{font-family:var(--display);font-size:22px;font-weight:600;font-variant-numeric:tabular-nums}
+.totals .hl b{color:var(--accent)}
+
+/* ledgers */
+.ledgers{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.ledger{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:20px 22px;display:grid;gap:14px;align-content:start;min-width:0}
+.ledger h2{font-family:var(--display);font-size:18px;font-weight:600;margin:0;display:flex;align-items:center;gap:10px}
+.tag{font-size:12px;font-weight:500;padding:2px 10px;border-radius:999px;font-family:var(--body)}
+.client .tag{background:var(--cool-soft);color:var(--cool)}
+.ours .tag{background:var(--accent-soft);color:var(--accent-ink)}
+.big{display:flex;align-items:baseline;gap:8px}
+.big b{font-family:var(--display);font-size:34px;font-weight:600;font-variant-numeric:tabular-nums}
+.big small{color:var(--muted)}
+.rows{display:grid;margin:0}
+.rows>div{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:10px 0;border-top:1px dashed var(--line)}
+.rows dt{color:var(--muted);font-size:14px}
+.rows dt em{font-style:normal;font-size:12px;opacity:.8;display:block}
+.rows dd{margin:0;font-family:var(--display);font-weight:500;font-size:17px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.rows .profit dd{color:var(--good);font-weight:600}
+.rows .profit dt{color:var(--ink);font-weight:500}
+
+/* installments track */
+.track{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:20px 22px;display:grid;gap:14px}
+.track-head{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;align-items:baseline}
+.track h2{font-family:var(--display);font-size:18px;font-weight:600;margin:0}
+.track-head p{margin:0;color:var(--muted);font-size:14px}
+.pays{display:grid;grid-template-columns:repeat(var(--n,4),1fr);gap:8px}
+.pay{border-radius:12px;padding:12px;display:grid;gap:2px;background:var(--bg);border:1px solid var(--line);min-width:0}
+.pay.first{background:var(--accent-soft);border-color:transparent}
+.pay span{font-size:12.5px;color:var(--muted)}
+.pay.first span{color:var(--accent-ink)}
+.pay b{font-family:var(--display);font-size:19px;font-weight:600;font-variant-numeric:tabular-nums}
+.remain{display:flex;flex-wrap:wrap;gap:6px 22px;font-size:14px;color:var(--muted)}
+.remain b{color:var(--ink);font-family:var(--display);font-variant-numeric:tabular-nums;font-weight:600}
+
+/* settings */
+details{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:4px 22px}
+summary{cursor:pointer;padding:14px 0;font-family:var(--display);font-weight:500;list-style:none;display:flex;justify-content:space-between;gap:8px}
+summary::-webkit-details-marker{display:none}
+summary::after{content:"+";color:var(--accent);font-size:20px;line-height:1}
+details[open] summary::after{content:"−"}
+.settings{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;padding-bottom:18px}
+.field{display:grid;gap:4px;min-width:0}
+.field label{font-size:13px;color:var(--muted)}
+.field input{width:100%;font:inherit;font-family:var(--display);font-variant-numeric:tabular-nums;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:8px 12px}
+.field input:focus-visible,#amount:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.opts{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:12px 20px;align-items:center;justify-content:space-between}
+.opts label{display:flex;gap:8px;align-items:center;font-size:14px;cursor:pointer}
+.btn{font:inherit;font-size:14px;border-radius:10px;padding:8px 16px;cursor:pointer;border:1px solid var(--line);background:var(--bg);color:var(--ink)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+.btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.toast{font-size:13.5px;color:var(--good)}
+footer{color:var(--muted);font-size:12.5px}
+footer code{font-family:var(--display);direction:ltr;unicode-bidi:isolate}
+
+/* share */
+.share{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:20px 22px;display:grid;gap:14px}
+.share h2{font-family:var(--display);font-size:18px;font-weight:600;margin:0}
+.share-body{display:grid;grid-template-columns:minmax(0,300px) minmax(0,1fr);gap:22px;align-items:start}
+#sumImg{width:100%;max-width:300px;border-radius:6px;border:1px solid var(--line);background:#fff;display:block}
+.share-side{display:grid;gap:12px;min-width:0}
+#sumText{margin:0;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:14px 16px;font-family:var(--display);font-size:14.5px;line-height:1.75;white-space:pre-wrap;overflow-x:auto}
+.hint{margin:0;color:var(--muted);font-size:13px}
+
+@media (max-width:760px){
+  .share-body{grid-template-columns:1fr}
+  #sumImg{margin-inline:auto}
+  .ledgers{grid-template-columns:1fr}
+  .settings{grid-template-columns:1fr 1fr}
+}
+@media (max-width:460px){
+  .totals{grid-template-columns:1fr 1fr}
+  .totals .hl{grid-column:1/-1}
+  .pays{grid-template-columns:1fr 1fr}
+}
+</style>
+</head>
+<body style="margin:0">
+
+<div class="wrap" dir="rtl" lang="ar">
+  <header>
+    <div>
+      <div class="eyebrow">حاسبة داخلية · تقسيط تابي</div>
+      <h1>حاسبة أقساط تابي</h1>
+      <p class="sub">اكتب المبلغ المطلوب، وتطلع لك الدفعة إلى العميل والدفعة علينا مع الرسوم والفائدة والدفعات المتبقية.</p>
+    </div>
+    <div class="actions">
+      <button class="btn primary" id="copy" type="button">نسخ الملخص</button>
+      <span class="toast" id="toast" aria-live="polite"></span>
+    </div>
+  </header>
+
+  <section class="input-band" aria-label="المبلغ المطلوب">
+    <label for="amount">المبلغ المطلوب</label>
+    <div class="amount-row">
+      <input id="amount" type="text" inputmode="decimal" value="1000" autocomplete="off" aria-label="المبلغ المطلوب بالريال">
+      <span class="cur">ر.س</span>
+    </div>
+    <div class="chips" id="chips">
+      <button class="chip" type="button" data-v="500">500</button>
+      <button class="chip" type="button" data-v="1000">1,000</button>
+      <button class="chip" type="button" data-v="2000">2,000</button>
+      <button class="chip" type="button" data-v="3000">3,000</button>
+      <button class="chip" type="button" data-v="5000">5,000</button>
+    </div>
+    <div class="totals">
+      <div><span>المبلغ المطلوب</span><b id="t-amount">0</b></div>
+      <div><span>الدفعة إلى العميل</span><b id="t-client">0</b></div>
+      <div class="hl"><span>الدفعة علينا</span><b id="t-ours">0</b></div>
+    </div>
+  </section>
+
+  <div class="ledgers">
+    <article class="ledger client">
+      <h2>الدفعة إلى العميل <span class="tag" id="tag-client">+27%</span></h2>
+      <div class="big"><b id="c-total">0</b><small>ر.س</small></div>
+      <dl class="rows">
+        <div><dt>المبلغ المطلوب</dt><dd id="c-amount">0</dd></div>
+        <div><dt>الرسوم والضريبة<em id="c-fee-note">8.5% من الإجمالي</em></dt><dd id="c-fee">0</dd></div>
+        <div class="profit"><dt>الفائدة<em>الإجمالي − المبلغ − الرسوم</em></dt><dd id="c-profit">0</dd></div>
+      </dl>
+    </article>
+
+    <article class="ledger ours">
+      <h2>الدفعة علينا <span class="tag" id="tag-ours">+75%</span></h2>
+      <div class="big"><b id="o-total">0</b><small>ر.س</small></div>
+      <dl class="rows">
+        <div><dt>المبلغ المطلوب</dt><dd id="o-amount">0</dd></div>
+        <div><dt>الرسوم والضريبة<em id="o-fee-note">8.5% من الإجمالي</em></dt><dd id="o-fee">0</dd></div>
+        <div><dt>الدفعة الأولى<em id="o-first-note">الإجمالي ÷ 4</em></dt><dd id="o-first">0</dd></div>
+        <div class="profit"><dt>الفائدة<em>الإجمالي − المبلغ − الرسوم − الدفعة الأولى</em></dt><dd id="o-profit">0</dd></div>
+      </dl>
+    </article>
+  </div>
+
+  <section class="track" aria-label="جدول الدفعات علينا">
+    <div class="track-head">
+      <h2>الدفعات علينا</h2>
+      <p id="track-note">4 دفعات متساوية</p>
+    </div>
+    <div class="pays" id="pays"></div>
+    <div class="remain">
+      <span>الدفعات المتبقية: <b id="r-count">3</b></span>
+      <span>مبلغ الدفعة: <b id="r-each">0</b></span>
+      <span>الإجمالي المتبقي: <b id="r-total">0</b></span>
+    </div>
+  </section>
+
+  <section class="share" aria-label="ملخص العميل">
+    <div class="track-head">
+      <h2>ملخص العميل</h2>
+      <p>صورة ونص جاهزين للإرسال</p>
+    </div>
+    <div class="share-body">
+      <img id="sumImg" alt="صورة ملخص العميل">
+      <div class="share-side">
+        <pre id="sumText" dir="rtl"></pre>
+        <div class="actions">
+          <button class="btn primary" id="copyImg" type="button">نسخ الصورة</button>
+          <button class="btn" id="copyText" type="button">نسخ النص</button>
+          <span class="toast" id="toast2" aria-live="polite"></span>
+        </div>
+        <p class="hint">إذا ما انسخت الصورة: بالجوال اضغط عليها مطولًا واختر حفظ أو نسخ، وبالكمبيوتر كليك يمين عليها.</p>
+      </div>
+    </div>
+  </section>
+
+  <details id="settings-box">
+    <summary>إعدادات النسب</summary>
+    <div class="settings">
+      <div class="field"><label for="clientRate">نسبة الزيادة على العميل %</label><input id="clientRate" type="number" step="0.5" value="27"></div>
+      <div class="field"><label for="ourRate">نسبة الزيادة علينا %</label><input id="ourRate" type="number" step="0.5" value="75"></div>
+      <div class="field"><label for="feeRate">رسوم تابي والضريبة %</label><input id="feeRate" type="number" step="0.1" value="8.5"></div>
+      <div class="field"><label for="count">عدد الدفعات</label><input id="count" type="number" min="1" max="12" step="1" value="4"></div>
+      <div class="opts">
+        <label><input type="checkbox" id="round" checked> تقريب المبالغ لأقرب ريال (مثل ملف الإكسل)</label>
+        <button class="btn" type="button" id="reset">إرجاع النسب الأصلية</button>
+      </div>
+    </div>
+  </details>
+
+  <footer>المعادلات مأخوذة من ملف الإكسل: الدفعة إلى العميل = المبلغ × 1.27، الدفعة علينا = المبلغ × 1.75، الرسوم = 8.5% من الإجمالي، الدفعة = الإجمالي ÷ 4.</footer>
+</div>
+
+<script>
+(function(){
+  const $ = id => document.getElementById(id);
+  const DEF = {clientRate:27, ourRate:75, feeRate:8.5, count:4, round:true};
+  const KEY = 'tabby-calc-settings';
+  let last = null;
+
+  function load(){
+    try{ const s = JSON.parse(localStorage.getItem(KEY)||'null'); if(s){
+      ['clientRate','ourRate','feeRate','count'].forEach(k=>{ if(s[k]!=null) $(k).value = s[k]; });
+      if(typeof s.round==='boolean') $('round').checked = s.round;
+      if(s.amount) $('amount').value = s.amount;
+    }}catch(e){}
+  }
+  function save(){
+    try{ localStorage.setItem(KEY, JSON.stringify({
+      clientRate:$('clientRate').value, ourRate:$('ourRate').value, feeRate:$('feeRate').value,
+      count:$('count').value, round:$('round').checked, amount:$('amount').value })); }catch(e){}
+  }
+
+  function parseNum(v){
+    v = String(v).replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace(/[٫]/g,'.').replace(/[^\d.]/g,'');
+    const n = parseFloat(v); return isFinite(n) ? n : 0;
+  }
+  function fmt(n){
+    const r = $('round').checked;
+    return new Intl.NumberFormat('en-US',{maximumFractionDigits:r?0:2, minimumFractionDigits:0}).format(r?Math.round(n):n);
+  }
+  function pct(n){ return (Math.round(n*100)/100).toString(); }
+
+  function calc(){
+    const A = parseNum($('amount').value);
+    const cr = parseNum($('clientRate').value)/100;
+    const orr = parseNum($('ourRate').value)/100;
+    const fr = parseNum($('feeRate').value)/100;
+    const n = Math.max(1, Math.min(12, Math.round(parseNum($('count').value)) || 4));
+
+    // الدفعة إلى العميل
+    const E = A + A*cr;
+    const cFee = E*fr;
+    const cProfit = E - A - cFee;
+    // الدفعة علينا
+    const F = A + A*orr;
+    const oFee = F*fr;
+    const first = F/n;
+    const oProfit = F - A - oFee - first;
+    const remainCount = n - 1;
+    const remainTotal = first*remainCount;
+
+    last = {A,E,cFee,cProfit,F,oFee,first,oProfit,remainCount,remainTotal,n};
+
+    $('t-amount').textContent = fmt(A);
+    $('t-client').textContent = fmt(E);
+    $('t-ours').textContent = fmt(F);
+    $('tag-client').textContent = '+' + pct(cr*100) + '%';
+    $('tag-ours').textContent = '+' + pct(orr*100) + '%';
+
+    $('c-total').textContent = fmt(E);
+    $('c-amount').textContent = fmt(A);
+    $('c-fee').textContent = fmt(cFee);
+    $('c-profit').textContent = fmt(cProfit);
+    $('c-fee-note').textContent = pct(fr*100) + '% من الإجمالي';
+
+    $('o-total').textContent = fmt(F);
+    $('o-amount').textContent = fmt(A);
+    $('o-fee').textContent = fmt(oFee);
+    $('o-first').textContent = fmt(first);
+    $('o-profit').textContent = fmt(oProfit);
+    $('o-fee-note').textContent = pct(fr*100) + '% من الإجمالي';
+    $('o-first-note').textContent = 'الإجمالي ÷ ' + n;
+
+    $('track-note').textContent = n + ' دفعات متساوية · الإجمالي ' + fmt(F) + ' ر.س';
+    const pays = $('pays'); pays.style.setProperty('--n', Math.min(n,6));
+    pays.innerHTML = '';
+    for(let i=0;i<n;i++){
+      const d = document.createElement('div');
+      d.className = 'pay' + (i===0?' first':'');
+      d.innerHTML = '<span>' + (i===0?'الدفعة الأولى':'الدفعة ' + (i+1)) + '</span><b>' + fmt(first) + '</b>';
+      pays.appendChild(d);
+    }
+    $('r-count').textContent = remainCount;
+    $('r-each').textContent = fmt(first);
+    $('r-total').textContent = fmt(remainTotal);
+    save();
+    if(typeof scheduleDraw==='function') scheduleDraw();
+  }
+
+  // أرقام عربية بدون فواصل، مثل الصورة
+  function ar(n){
+    const r = $('round').checked;
+    return new Intl.NumberFormat('ar-SA',{useGrouping:false,maximumFractionDigits:r?0:2}).format(r?Math.round(n):n);
+  }
+
+  // بلوكات الملخص: نفس ترتيب صورة الإكسل
+  function blocks(){
+    const s = last; if(!s) return [];
+    return [
+      {kind:'head', lines:['المبلغ المطلوب', ar(s.A) + ' ر.س']},
+      {kind:'gap'},
+      {kind:'client', lines:['الدفعة على العميل', ar(s.E)]},
+      {kind:'client', lines:['الرسوم والضريبة', ar(s.cFee + s.cProfit)]},
+      {kind:'gap'},
+      {kind:'ours', lines:['الدفعة علينا', 'المبلغ بعد خصم الدفعة الأولى', ar(s.F - s.first)]},
+      {kind:'ours', lines:['الرسوم والضريبة', ar(s.oFee + s.oProfit)]},
+      {kind:'ours', lines:['الدفعة الأولى', ar(s.first)]},
+      {kind:'ours', lines:['الدفعات المتبقية على العميل', ar(s.remainCount) + ' × ' + ar(s.first) + ' = ' + ar(s.remainTotal)], ltrLast:true}
+    ];
+  }
+
+  function summary(){
+    return blocks().map(b => b.kind==='gap' ? '' : b.lines.join('\n')).join('\n')
+      .replace(/\n{3,}/g,'\n\n');
+  }
+
+  // رسم الصورة
+  const canvas = document.createElement('canvas');
+  const FILL = {head:'#ff0000', client:'#f8cbad', ours:'#bdd7ee', gap:'#ffffff'};
+  const INK = {head:'#ffffff', client:'#111111', ours:'#111111'};
+  function draw(){
+    const W = 300, S = 3, LH = 26, PAD = 8, GAP = 20;
+    const bl = blocks();
+    const heights = bl.map(b => b.kind==='gap' ? GAP : b.lines.length*LH + PAD*2);
+    const H = heights.reduce((a,b)=>a+b,0);
+    canvas.width = W*S; canvas.height = H*S;
+    const c = canvas.getContext('2d');
+    c.setTransform(S,0,0,S,0,0);
+    c.fillStyle = '#fff'; c.fillRect(0,0,W,H);
+    let y = 0;
+    const fam = '"Readex Pro","IBM Plex Sans Arabic",Tahoma,Arial,sans-serif';
+    bl.forEach((b,i)=>{
+      const h = heights[i];
+      c.fillStyle = FILL[b.kind]; c.fillRect(0,y,W,h);
+      if(b.kind!=='gap'){
+        c.strokeStyle = '#7f7f7f'; c.lineWidth = 1; c.strokeRect(0.5,y+0.5,W-1,h-1);
+        c.fillStyle = INK[b.kind]; c.textAlign = 'center'; c.textBaseline = 'middle';
+        b.lines.forEach((t,j)=>{
+          const isVal = j === b.lines.length-1 && b.kind!=='head' || (b.kind==='head' && j===1);
+          c.font = (isVal ? '600 18px ' : '500 15px ') + fam;
+          c.direction = (b.ltrLast && j===b.lines.length-1) ? 'ltr' : 'rtl';
+          c.fillText(t, W/2, y + PAD + LH*j + LH/2);
+        });
+      }
+      y += h;
+    });
+    try{ $('sumImg').src = canvas.toDataURL('image/png'); }catch(e){}
+    $('sumText').textContent = summary();
+  }
+  let drawT; function scheduleDraw(){ clearTimeout(drawT); drawT = setTimeout(draw, 80); }
+
+  function flash(t, id){ id = id || 'toast'; $(id).textContent = t; clearTimeout(flash[id]); flash[id] = setTimeout(()=>$(id).textContent='', 2500); }
+
+  function copyText(toastId){
+    const text = summary();
+    const fallback = ()=>{
+      const ta = document.createElement('textarea'); ta.value = text; ta.style.position='fixed'; ta.style.opacity='0';
+      document.body.appendChild(ta); ta.select();
+      let ok=false; try{ ok = document.execCommand('copy'); }catch(e){}
+      ta.remove(); flash(ok ? 'تم نسخ النص' : 'تعذر النسخ، انسخ النص يدويًا', toastId);
+    };
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(()=>flash('تم نسخ النص', toastId)).catch(fallback);
+    } else fallback();
+  }
+  $('copy').addEventListener('click', ()=>copyText('toast'));
+  $('copyText').addEventListener('click', ()=>copyText('toast2'));
+
+  $('copyImg').addEventListener('click', ()=>{
+    draw();
+    const fail = ()=>flash('ما قدرت أنسخ الصورة هنا، احفظها من الصورة نفسها', 'toast2');
+    try{
+      if(!(navigator.clipboard && navigator.clipboard.write && window.ClipboardItem)) return fail();
+      const blob = new Promise((res,rej)=>canvas.toBlob(b=>b?res(b):rej(), 'image/png'));
+      navigator.clipboard.write([new ClipboardItem({'image/png': blob})])
+        .then(()=>flash('تم نسخ الصورة', 'toast2')).catch(fail);
+    }catch(e){ fail(); }
+  });
+
+  $('chips').addEventListener('click', e=>{
+    const b = e.target.closest('.chip'); if(!b) return;
+    $('amount').value = b.dataset.v; calc();
+  });
+  ['amount','clientRate','ourRate','feeRate','count'].forEach(id=>$(id).addEventListener('input', calc));
+  $('round').addEventListener('change', calc);
+  $('reset').addEventListener('click', ()=>{
+    $('clientRate').value = DEF.clientRate; $('ourRate').value = DEF.ourRate;
+    $('feeRate').value = DEF.feeRate; $('count').value = DEF.count; $('round').checked = DEF.round; calc();
+  });
+
+  load(); calc();
+  if(document.fonts && document.fonts.ready) document.fonts.ready.then(draw);
+})();
+</script>
+</body>
+</html>
